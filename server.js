@@ -23,6 +23,12 @@ function authenticate(req, res, next) {
 
   try {
     // TODO: Verify JWT
+    const decoded = verifyJWT(token, JWT_SECRET);
+    if (!decoded) return res.status(403).json({ message: 'Invalid token' });
+    req.user = {
+      userId: decoded.userId,
+      role: decoded.role
+    };
 
     next();
   } catch {
@@ -49,7 +55,8 @@ app.post('/register', async (req, res) => {
     return res.status(409).json({ message: 'User already exists' });
 
   // TODO: Hash password
-
+ const hashedPassword = hashPassword(password);
+  if (!hashedPassword) return res.status(500).json({ message: 'Error hashing password' });
   users.push({ username, password: hashedPassword, role });
 
   res.status(201).json({ message: 'User registered' });
@@ -60,9 +67,16 @@ app.post('/login', async (req, res) => {
   const user = users.find((u) => u.username === username);
 
   // TODO: Verify password
-
+  const isValidPassword = verifyPassword(password, user.password);
+  if (!isValidPassword)
+    return res.status(401).json({ message: 'Invalid credentials' });
   // TODO: Sign JWT
-
+  const payload = {
+    username: username,
+    role: user.role,
+  };
+  const token = signJWT(payload, JWT_SECRET, 3600);
+  if (!token) return res.status(500).json({ message: 'Error signing token' });
   res.json({ token });
 });
 
